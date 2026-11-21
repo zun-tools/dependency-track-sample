@@ -17,14 +17,19 @@ done
 [ "$(curl -s -o /dev/null -w '%{http_code}' -m 3 "${DT_URL}/api/version" || true)" = 200 ] \
   || { log "API が 6 分たっても応答しません: docker compose logs apiserver"; exit 1; }
 
+# 成功（HTTP 200）のときだけ本文（トークン）を出す
 login() {
-  curl -s -m 20 -X POST "${DT_URL}/api/v1/user/login" \
-    --data-urlencode username=admin --data-urlencode password="$1"
+  local out code
+  out="$(mktemp)"
+  code="$(curl -s -m 20 -o "$out" -w '%{http_code}' -X POST "${DT_URL}/api/v1/user/login" \
+    --data-urlencode username=admin --data-urlencode password="$1" || true)"
+  if [ "$code" = 200 ]; then cat "$out"; else cat "$out" >&2; fi
+  rm -f "$out"
+  [ "$code" = 200 ]
 }
 
-# 初回は admin / admin で入ろうとすると FORCE_PASSWORD_CHANGE が返る（パスワードの変更を求められる）
-first="$(login admin || true)"
-if [ "$first" = "FORCE_PASSWORD_CHANGE" ]; then
+# 初回は admin / admin で入ろうとすると FORCE_PASSWORD_CHANGE（401）が返る＝パスワードの変更を求められる
+if [ "$(login admin 2>&1 >/dev/null || true)" = "FORCE_PASSWORD_CHANGE" ]; then
   log "admin のパスワードを変更します"
   curl -s -m 20 -o /dev/null -w '%{http_code}\n' -X POST "${DT_URL}/api/v1/user/forceChangePassword" \
     --data-urlencode username=admin --data-urlencode password=admin \
@@ -32,11 +37,8 @@ if [ "$first" = "FORCE_PASSWORD_CHANGE" ]; then
     --data-urlencode confirmPassword="${DT_ADMIN_PASSWORD}" >&2
 fi
 
-jwt="$(login "${DT_ADMIN_PASSWORD}")"
-case "$jwt" in
-  eyJ*) ;;
-  *) log "admin でログインできません（既に別のパスワードに変更済みなら DT_ADMIN_PASSWORD をそれに合わせてください）"; exit 1 ;;
-esac
+jwt="$(login "${DT_ADMIN_PASSWORD}")" \
+  || { log "admin でログインできません（既に別のパスワードに変更済みなら DT_ADMIN_PASSWORD をそれに合わせてください）"; exit 1; }
 auth="Authorization: Bearer ${jwt}"
 
 team="$(curl -s -m 20 -H "$auth" "${DT_URL}/api/v1/team" \
