@@ -1,6 +1,6 @@
 # dependency-track-sample
 
-Dependency-Track（v5.2.2）を自分の機械で起動し、わざと古い版を並べたコンテナ 4 つ（nginx・php・tomcat・rails。AlmaLinux 8.4）の SBOM を預けて、脆弱性の番号 `CVE-2020-17541` から「どのアプリに入っているか」を引くまでの最小サンプルです。
+Dependency-Track（v5.2.2）を自分の機械で起動し、わざと古い版を並べた業務アプリ風のコンテナ 4 つ（shop-web・shop-api・admin・blog。AlmaLinux 8.4）の SBOM を預けて、脆弱性の番号 `CVE-2020-17541` から「どのアプリに入っているか」を引くまでの最小サンプルです。
 動画: dependency-track の回 no01（公開後に URL を追記）。
 
 ## 使い方
@@ -28,9 +28,9 @@ export DT_API_KEY="$(./scripts/setup.sh)"
 
 # 5. CVE-2020-17541 が入っているプロジェクトを引く
 ./scripts/affected.sh
-# nginx 1.0
-# php 1.0
-# tomcat 1.0        ← rails は出ません（この脆弱性の部品が入っていないため）
+# shop-web 1.0
+# shop-api 1.0
+# admin 1.0        ← blog は出ません（この脆弱性の部品が入っていないため）
 ```
 
 - 2 の `setup.sh` は、画面の Administration > Access Management > Teams > Automation で API キーを作る手と同じ結果にします（Automation チームに `PROJECT_CREATION_UPLOAD`・`VIEW_VULNERABILITY`・`SYSTEM_CONFIGURATION_READ` を足してキーを 1 本作る）。画面で作ったキーを使うなら、そのチームに同じ 3 つを足してください
@@ -44,7 +44,7 @@ export DT_API_KEY="$(./scripts/setup.sh)"
 | 物 | 内容 |
 |---|---|
 | `compose.yaml` | 公式の quickstart の compose をもとに、apiserver・frontend を `5.2.2` に固定し、ポートを 127.0.0.1 だけに開く（PostgreSQL は `postgres:18-alpine`） |
-| `sbom/*.cdx.json` | Syft 1.57.2 の `-o cyclonedx-json`（CycloneDX 1.7）で作った SBOM 4 本。AlmaLinux 8.4 のコンテナに nginx 1.14.1・PHP 7.2.24・Tomcat 9.0.40・Rails 6.0.3.2 を入れたイメージから作成 |
+| `sbom/*.cdx.json` | Syft 1.57.2 の `-o cyclonedx-json`（CycloneDX 1.7）で作った SBOM 4 本。AlmaLinux 8.4 のコンテナに nginx 1.14.1・PHP 7.2.24・Tomcat 9.0.40・Rails 6.0.3.2 を入れたイメージから作成。プロジェクト名は業務アプリ風の別名で、`shop-web`＝nginx、`shop-api`＝PHP、`admin`＝Tomcat、`blog`＝Rails のイメージ |
 | `scripts/setup.sh` | admin の初回パスワード変更 → API キー作成 |
 | `scripts/wait-ready.sh` | NVD の取り込み完了待ち |
 | `scripts/upload.sh` | SBOM を上げて、取り込み完了まで待つ |
@@ -66,7 +66,7 @@ NVD は日々動くので、後から回すと件数や当たる脆弱性は変�
 ## これで全部が見えるわけではありません
 
 - 0 件でも「入っていない」とは限りません。公開データに無い物・照らし直しの前・CPE の無い部品は出ません
-- 出た 3 本は、箱の中の部品 `libjpeg-turbo 1.5.3-10.el8` に当たったものです（nginx 本体の脆弱性ではありません）。Linux の配布元は版番号を変えずに修正を取り込むことがあり、NVD の照合は直した版にも当たることがあります。本当に直っているかは配布元の勧告で確かめてください
+- 出た 3 本は、箱の中の部品 `libjpeg-turbo 1.5.3-10.el8` に当たったものです（nginx など、アプリの本体の脆弱性ではありません）。Linux の配布元は版番号を変えずに修正を取り込むことがあり、NVD の照合は直した版にも当たることがあります。本当に直っているかは配布元の勧告で確かめてください
 - SBOM は上げた時点の部品の一覧です。部品を変えたら上げ直してください
 - SBOM の作者欄のメールアドレスは除いた（部品と版は Syft の出力のまま）
 - Dependency-Track v4 は 2026 年 12 月に保守終了予定（公式 README）です。このサンプルは v5.2.2 だけを扱います
